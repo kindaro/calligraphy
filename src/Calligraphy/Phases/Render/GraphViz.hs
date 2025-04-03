@@ -24,6 +24,7 @@ data GraphVizConfig = GraphVizConfig
   { showChildArrowhead :: Bool,
     clusterGroups :: Bool,
     landscapeLayout :: Bool,
+    orthogonalEdges :: Bool,
     splines :: Bool,
     reverseDependencyRank :: Bool
   }
@@ -34,6 +35,7 @@ pGraphVizConfig =
     <$> flag False True (long "show-child-arrowhead" <> help "Put an arrowhead at the end of a parent-child edge")
     <*> flag True False (long "no-cluster-trees" <> help "Don't draw definition trees as a cluster.")
     <*> flag False True (long "landscape-layout" <> help "…") -- TODO write help message
+    <*> flag False True (long "orthogonal-edges" <> help "…") -- TODO write help message
     <*> flag True False (long "no-splines" <> help "Render arrows as straight lines instead of splines")
     <*> flag False True (long "reverse-dependency-rank" <> help "Make dependencies have lower rank than the dependee, i.e. show dependencies above their parent.")
 
@@ -43,7 +45,7 @@ renderGraphViz GraphVizConfig {..} (RenderGraph roots calls types) = do
     unless splines $ textLn "splines=false;"
     when landscapeLayout $ textLn "rankdir=\"RL\";"
     textLn "node [style=filled fillcolor=\"#ffffffcf\"];"
-    textLn "graph [outputorder=edgesfirst];"
+    textLn $ "graph [outputorder=edgesfirst" <> (if orthogonalEdges then ", splines=ortho" else "") <> "];"
     case roots of
       Left modules -> mapM_ printModule modules
       Right trees -> mapM_ printTree trees
