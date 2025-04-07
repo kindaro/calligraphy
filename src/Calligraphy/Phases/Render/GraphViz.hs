@@ -102,7 +102,7 @@ nodeShape DataDecl = "octagon"
 nodeShape ConDecl = "box"
 nodeShape RecDecl = "box"
 nodeShape ClassDecl = "house"
-nodeShape ValueDecl = "ellipse"
+nodeShape ValueDecl = "note"
 
 edge :: ID -> ID -> Attributes -> Printer ()
 edge from to attrs = strLn $ show from <> " -> " <> show to <> " " <> renderAttrs attrs
