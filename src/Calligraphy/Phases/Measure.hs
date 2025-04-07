@@ -30,14 +30,17 @@ import GHC.Float
 import Options.Applicative
 import Statistics.Distribution
 import Statistics.Distribution.Beta
+import Text.Printf
 
 data MeasurementConfig = MeasurementConfig
-  { doMeasure :: Bool
+  { doMeasure :: Bool,
+    doPrintStatistics :: Bool
   }
 
 pMeasurementConfig :: Parser MeasurementConfig
 pMeasurementConfig = do
   doMeasure <- switch (long "measure" <> help "…") -- TODO write help message
+  doPrintStatistics <- switch (long "print-statistics" <> help "…") -- TODO write help message
   pure MeasurementConfig {..}
 
 findAllKeys :: CallGraph -> EnumSet Key
@@ -184,6 +187,12 @@ ppMeasurements Measurements {..} = do
   showLn statistics
   forM_ (EnumMap.toList tangledness) showLn
 
+ppStatistics :: Prints Statistics
+ppStatistics Statistics {..} = do
+  strLn $ "node count" <:> nodeCount
+  strLn $ "average tangledness" <:> NiceFloat averageTangledness
+  strLn $ "standard deviation" <:> NiceFloat standardDeviationOfTangledness
+
 ppCache :: Prints Cache
 ppCache Cache {..} = do
   showLn allKeys
@@ -199,3 +208,10 @@ instance {-# OVERLAPPABLE #-} (Foldable foldable, Num number) => Cardinality num
 
 instance (Num number) => Cardinality number (EnumSet α) where
   cardinality = fromIntegral . EnumSet.size
+
+(<:>) :: (Show values) => String -> values -> String
+name <:> value = name <> ": " <> show value
+infix 6 <:>
+
+newtype NiceFloat = NiceFloat Float
+instance Show NiceFloat where show (NiceFloat float) = printf "%.3f" float

@@ -62,6 +62,7 @@ mainWithConfig AppConfig {..} = do
   let measurements = measure cgCleaned
   debug dumpMeasurements $ ppMeasurements measurements
   let maybeMeasurements = if' (doMeasure measurementConfig) measurements
+  when (doPrintStatistics measurementConfig) (printStdout (ppStatistics (statistics measurements)))
 
   let renderConfig'
         | collapseModules nodeFilterConfig = renderConfig {clusterModules = ClusterNever}
@@ -84,6 +85,9 @@ data AppConfig = AppConfig
     outputConfig :: OutputConfig,
     debugConfig :: DebugConfig
   }
+
+printStdout :: Printer () -> IO ()
+printStdout = Text.putStrLn . runPrinter
 
 printStderr :: Printer () -> IO ()
 printStderr = Text.hPutStrLn stderr . runPrinter
