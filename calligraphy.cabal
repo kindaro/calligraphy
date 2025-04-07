@@ -48,6 +48,7 @@ library
     Calligraphy.Compat.Lib
     Calligraphy.Phases.DependencyFilter
     Calligraphy.Phases.EdgeCleanup
+    Calligraphy.Phases.Measure
     Calligraphy.Phases.NodeFilter
     Calligraphy.Phases.Parse
     Calligraphy.Phases.Render.Common
@@ -71,6 +72,7 @@ library
     , mtl
     , optparse-applicative
     , process
+    , statistics
     , text
 
 executable calligraphy

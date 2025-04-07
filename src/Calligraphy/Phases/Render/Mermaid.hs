@@ -30,11 +30,11 @@ renderMermaid (RenderGraph roots calls types) = do
     strLn "classDef default fill-opacity:0,stroke:#777;"
   where
     printTree :: Prints (Tree RenderNode)
-    printTree (Node (RenderNode nodeid typ lbll export) []) = do
+    printTree (Node (RenderNode nodeid typ lbll _ export) []) = do
       strLn $ nodeid <> nodeShape typ (intercalate "\\n" lbll)
       unless export . strLn $
         "style " <> nodeid <> " stroke-dasharray: 5 5"
-    printTree (Node (RenderNode nodeid _typ lbll export) children) = do
+    printTree (Node (RenderNode nodeid _typ lbll _ export) children) = do
       brack ("subgraph " <> nodeid <> "[" <> intercalate "\\n" lbll <> "]") "end" $ do
         unless export . strLn $
           "style " <> nodeid <> " stroke-dasharray: 5 5"
@@ -57,8 +57,8 @@ renderMermaid (RenderGraph roots calls types) = do
           Left mods -> mods >>= moduleDecls
           Right a -> a
         go :: Tree RenderNode -> State (Set (ID, ID)) ()
-        go (Node (RenderNode parentId _ _ _) children) = do
-          forM_ children $ \child@(Node (RenderNode childId _ _ _) _) -> do
+        go (Node (RenderNode parentId _ _ _ _) children) = do
+          forM_ children $ \child@(Node (RenderNode childId _ _ _ _) _) -> do
             modify $ Set.delete (parentId, childId)
             go child
 

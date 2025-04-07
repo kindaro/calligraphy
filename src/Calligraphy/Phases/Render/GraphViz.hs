@@ -9,6 +9,7 @@ module Calligraphy.Phases.Render.GraphViz
   )
 where
 
+import Calligraphy.Phases.Measure
 import Calligraphy.Phases.Render.Common
 import Calligraphy.Prelude hiding (DeclType)
 import Calligraphy.Util.Printer
@@ -18,6 +19,7 @@ import Data.Maybe (catMaybes)
 import Data.Tree (Tree)
 import qualified Data.Tree as Tree
 import Options.Applicative hiding (style)
+import Text.Printf
 import Text.Show (showListWith)
 
 data GraphVizConfig = GraphVizConfig
@@ -82,14 +84,27 @@ renderGraphViz GraphVizConfig {..} (RenderGraph roots calls types) = do
         forM_ trees printTree
 
     printNode :: Prints RenderNode
-    printNode (RenderNode nId typ lbll exported) =
+    printNode (RenderNode nId typ lbll tangledness exported) =
       strLn $ nId <> " " <> renderAttrs attrs
       where
         attrs =
-          [ "label" .= ("\"" <> intercalate "\n" lbll <> "\""),
+          [ "label"
+              .= let measurements = case tangledness of
+                      Nothing -> []
+                      Just Tangledness {..} -> [show willBeRecompiled <> " / " <> show mustBeRecompiled]
+                  in ("\"" <> intercalate "\n" (lbll ++ measurements) <> "\""),
             "shape" .= nodeShape typ,
             "style" .= nodeStyle
           ]
+            ++ case tangledness of
+              Nothing -> []
+              Just Tangledness {..} ->
+                let
+                  red = if normalizedTangledness > 0 then round (normalizedTangledness * 255) :: Int else 0
+                  green = if normalizedTangledness < 0 then round (normalizedTangledness * (-255)) :: Int else 0
+                  hexy = printf "%02x" :: Int -> String
+                 in
+                  ["fillcolor" .= ("\"" <> "#" <> hexy (255 - green) <> hexy (255 - red) <> hexy (255 - max red green) <> "\"")]
         nodeStyle =
           show . intercalate ", " . catMaybes $
             [ if' (typ == RecDecl) "rounded",

@@ -8,6 +8,7 @@ import Calligraphy.Compat.Debug (ppHieFile)
 import qualified Calligraphy.Compat.GHC as GHC
 import Calligraphy.Phases.DependencyFilter
 import Calligraphy.Phases.EdgeCleanup
+import Calligraphy.Phases.Measure
 import Calligraphy.Phases.NodeFilter
 import Calligraphy.Phases.Parse
 import Calligraphy.Phases.Render.Common
@@ -58,11 +59,14 @@ mainWithConfig AppConfig {..} = do
   cgDependencyFiltered <- either (printDie . ppFilterError) pure $ dependencyFilter dependencyFilterConfig cgCollapsed
   let cgCleaned = cleanupEdges edgeFilterConfig cgDependencyFiltered
   debug dumpFinal $ ppCallGraph cgCleaned
+  let measurements = measure cgCleaned
+  debug dumpMeasurements $ ppMeasurements measurements
+  let maybeMeasurements = if' (doMeasure measurementConfig) measurements
 
   let renderConfig'
         | collapseModules nodeFilterConfig = renderConfig {clusterModules = ClusterNever}
         | otherwise = renderConfig
-  renderable <- either (printDie . ppRenderError) pure (renderGraph renderConfig' cgCleaned)
+  renderable <- either (printDie . ppRenderError) pure (renderGraph renderConfig' cgCleaned maybeMeasurements)
 
   output
     outputConfig
@@ -74,6 +78,7 @@ data AppConfig = AppConfig
     nodeFilterConfig :: NodeFilterConfig,
     dependencyFilterConfig :: DependencyFilterConfig,
     edgeFilterConfig :: EdgeCleanupConfig,
+    measurementConfig :: MeasurementConfig,
     renderConfig :: RenderConfig,
     graphVizConfig :: GraphVizConfig,
     outputConfig :: OutputConfig,
@@ -93,6 +98,7 @@ pConfig =
     <*> pNodeFilterConfig
     <*> pDependencyFilterConfig
     <*> pEdgeCleanupConfig
+    <*> pMeasurementConfig
     <*> pRenderConfig
     <*> pGraphVizConfig
     <*> pOutputConfig
@@ -173,7 +179,8 @@ pStdoutFormat =
 data DebugConfig = DebugConfig
   { dumpHieFile :: Bool,
     dumpLexicalTree :: Bool,
-    dumpFinal :: Bool
+    dumpFinal :: Bool,
+    dumpMeasurements :: Bool
   }
 
 pDebugConfig :: Parser DebugConfig
@@ -182,3 +189,4 @@ pDebugConfig =
     <$> switch (long "ddump-hie-file" <> help "Debug dump raw HIE files.")
     <*> switch (long "ddump-lexical-tree" <> help "Debug dump the reconstructed lexical structure of HIE files, the intermediate output in the parsing phase.")
     <*> switch (long "ddump-final" <> help "Debug dump the final tree after processing, i.e. as it will be rendered.")
+    <*> switch (long "ddump-measurements" <> help "…") -- TODO write help message

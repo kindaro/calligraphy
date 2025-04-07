@@ -16,10 +16,12 @@ module Calligraphy.Phases.Render.Common
   )
 where
 
+import Calligraphy.Phases.Measure
 import Calligraphy.Util.Printer (Prints, strLn)
 import Calligraphy.Util.Types (CallGraph (..), Decl (..), DeclType, GHCKey (unGHCKey), Key (..), Loc (..), Module (..))
 import Control.Applicative ((<|>))
 import Data.Bifunctor (bimap)
+import qualified Data.EnumMap as EnumMap
 import qualified Data.EnumSet as EnumSet
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import Data.Maybe (catMaybes, mapMaybe)
@@ -87,6 +89,7 @@ data RenderNode = RenderNode
   { nodeId :: ID,
     nodeType :: DeclType,
     nodeLabelLines :: [String],
+    nodeTangledness :: Maybe Tangledness,
     nodeExported :: Bool
   }
 
@@ -97,10 +100,11 @@ data RenderError = EmptyGraph
 ppRenderError :: Prints RenderError
 ppRenderError EmptyGraph = strLn "Output graph is empty"
 
-renderGraph :: RenderConfig -> CallGraph -> Either RenderError RenderGraph
+renderGraph :: RenderConfig -> CallGraph -> Maybe Measurements -> Either RenderError RenderGraph
 renderGraph
   RenderConfig {..}
-  (CallGraph modules calls types) =
+  (CallGraph modules calls types)
+  maybeMeasurements =
     case nonEmpty (mapMaybe (uncurry mkModule) (zip modules [0 ..])) of
       Nothing -> Left EmptyGraph
       Just neModules ->
@@ -127,7 +131,17 @@ renderGraph
             | otherwise = name
 
       mkNode :: Decl -> RenderNode
-      mkNode (Decl name key ghcKeys x t loc) = RenderNode (keyId key) t (catMaybes lbls) x
+      mkNode (Decl name key ghcKeys x t loc) =
+        let
+          nodeId = keyId key
+          nodeType = t
+          nodeLabelLines = catMaybes lbls
+          nodeTangledness = case maybeMeasurements of
+            Just Measurements {..} -> EnumMap.lookup key tangledness
+            Nothing -> Nothing
+          nodeExported = x
+         in
+          RenderNode {..}
         where
           lbls =
             [ pure name,
