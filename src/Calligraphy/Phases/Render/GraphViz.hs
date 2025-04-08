@@ -12,6 +12,7 @@ where
 import Calligraphy.Phases.Measure
 import Calligraphy.Phases.Render.Common
 import Calligraphy.Prelude hiding (DeclType)
+import Calligraphy.Util.Assorti
 import Calligraphy.Util.Printer
 import Calligraphy.Util.Types
 import Data.List (intercalate)
@@ -19,7 +20,6 @@ import Data.Maybe (catMaybes)
 import Data.Tree (Tree)
 import qualified Data.Tree as Tree
 import Options.Applicative hiding (style)
-import Text.Printf
 import Text.Show (showListWith)
 
 data GraphVizConfig = GraphVizConfig
@@ -77,11 +77,19 @@ renderGraphViz GraphVizConfig {..} (RenderGraph roots calls types) = do
           | otherwise = inner
 
     printModule :: Prints RenderModule
-    printModule (RenderModule lbl modId trees) =
+    printModule (RenderModule lbl modId trees maybeCohesion) =
       brack ("subgraph cluster_module_" <> modId <> " {") "}" $ do
-        strLn $ "label=" <> show lbl <> ";"
-        strLn "bgcolor=\"lightgray\""
+        strLn $ "label=" <> show labelWithCohesion <> ";"
+        case maybeCohesion of
+          Nothing -> strLn $ "bgcolor=" <> quote "lightgray"
+          Just Cohesion {..} ->
+            let brightnessOfLightGray = 0xd3 / 0xff -- the value of "lightgray" in X11 colour scheme, the default colour scheme of GraphViz
+             in strLn $ "bgcolor=" <> colourOfNormalizedFloat brightnessOfLightGray normalizedCohesion
         forM_ trees printTree
+      where
+        labelWithCohesion = case maybeCohesion of
+          Nothing -> lbl
+          Just Cohesion {..} -> unwords [lbl, (parenthesize . show . Percent) trueCohesion]
 
     printNode :: Prints RenderNode
     printNode (RenderNode nId typ lbll tangledness exported) =
@@ -91,7 +99,7 @@ renderGraphViz GraphVizConfig {..} (RenderGraph roots calls types) = do
           [ "label"
               .= let measurements = case tangledness of
                       Nothing -> []
-                      Just Tangledness {..} -> [show willBeRecompiled <> " / " <> show mustBeRecompiled]
+                      Just Tangledness {..} -> [show (PrettyFraction (willBeRecompiled, mustBeRecompiled))]
                   in ("\"" <> intercalate "\n" (lbll ++ measurements) <> "\""),
             "shape" .= nodeShape typ,
             "style" .= nodeStyle
@@ -99,18 +107,23 @@ renderGraphViz GraphVizConfig {..} (RenderGraph roots calls types) = do
             ++ case tangledness of
               Nothing -> []
               Just Tangledness {..} ->
-                let
-                  red = if normalizedTangledness > 0 then round (normalizedTangledness * 255) :: Int else 0
-                  green = if normalizedTangledness < 0 then round (normalizedTangledness * (-255)) :: Int else 0
-                  hexy = printf "%02x" :: Int -> String
-                 in
-                  ["fillcolor" .= ("\"" <> "#" <> hexy (255 - green) <> hexy (255 - red) <> hexy (255 - max red green) <> "\"")]
+                ["fillcolor" .= colourOfNormalizedFloat 1 normalizedTangledness]
         nodeStyle =
           show . intercalate ", " . catMaybes $
             [ if' (typ == RecDecl) "rounded",
               if' (not exported) "dashed",
               pure "filled"
             ]
+
+colourOfNormalizedFloat :: Float -> Float -> String
+colourOfNormalizedFloat whiteness biggerIsBetter =
+  let
+    scale number = round (number * whiteness * 0xff)
+    red = 1 - max 0 biggerIsBetter
+    green = 1 + min biggerIsBetter 0
+    blue = min red green
+   in
+    quote ("#" <> (hexy . scale) red <> (hexy . scale) green <> (hexy . scale) blue)
 
 nodeShape :: DeclType -> String
 nodeShape DataDecl = "octagon"

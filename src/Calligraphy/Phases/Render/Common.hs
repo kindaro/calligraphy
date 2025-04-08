@@ -24,6 +24,7 @@ import Data.Bifunctor (bimap)
 import qualified Data.EnumMap as EnumMap
 import qualified Data.EnumSet as EnumSet
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import qualified Data.Map as Map
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -82,7 +83,8 @@ data RenderGraph = RenderGraph
 data RenderModule = RenderModule
   { moduleLabel :: String,
     moduleId :: ID,
-    moduleDecls :: NonEmpty (Tree RenderNode)
+    moduleDecls :: NonEmpty (Tree RenderNode),
+    moduleCohesion :: Maybe Cohesion
   }
 
 data RenderNode = RenderNode
@@ -124,7 +126,7 @@ renderGraph
 
       mkModule :: Module -> Int -> Maybe RenderModule
       mkModule (Module name path decls) ix =
-        (\ne -> RenderModule label ("module_" <> show ix) (fmap mkNode <$> ne)) <$> nonEmpty decls
+        (\ne -> RenderModule label ("module_" <> show ix) (fmap mkNode <$> ne) (maybeMeasurements >>= Map.lookup name . cohesion)) <$> nonEmpty decls
         where
           label
             | showModulePath = path

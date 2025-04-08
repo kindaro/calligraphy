@@ -42,7 +42,7 @@ renderMermaid (RenderGraph roots calls types) = do
     -- strLn $ nodeid <> " ~~~ " <> nodeId childNode
 
     printModule :: Prints RenderModule
-    printModule (RenderModule lbl modId decls) =
+    printModule (RenderModule lbl modId decls _) =
       brack ("subgraph " <> modId <> " [" <> lbl <> "]") "end" $
         forM_ decls printTree
 
